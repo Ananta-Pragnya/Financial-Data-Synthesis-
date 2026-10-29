@@ -1,0 +1,4 @@
+id:ID(Sentiment-ID),name
+sentiment:negative,negative
+sentiment:neutral,neutral
+sentiment:positive,positive

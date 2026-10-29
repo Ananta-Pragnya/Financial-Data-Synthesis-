@@ -1,0 +1,2 @@
+id:ID(Dataset-ID),name,description,license,row_count:int,start_date:datetime,end_date:datetime
+dataset:dax40_news_sentiment_2017_2026,DAX40 Financial News Sentiment,LLM-labeled financial news headlines for DAX40 constituents,Non-commercial research only,42814,2017-02-06T22:00:16.000Z,2026-02-17T17:18:20.000Z

@@ -1,0 +1,7 @@
+FROM neo4j:5.12-bullseye
+
+ENV NEO4J_AUTH=neo4j/12345678
+ENV NEO4J_PLUGINS='["apoc", "graph-data-science"]'
+
+EXPOSE 7474 7687
+
