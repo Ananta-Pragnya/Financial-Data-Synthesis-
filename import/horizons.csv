@@ -1,4 +1,0 @@
-id:ID(Horizon-ID),name,min_months:int,max_months:int
-horizon:0-1,0-1,0,1
-horizon:1-3,1-3,1,3
-horizon:3-6,3-6,3,6

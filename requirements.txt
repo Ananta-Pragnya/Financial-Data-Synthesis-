@@ -1,0 +1,7 @@
+neo4j
+ollama
+numpy
+pandas
+scikit-learn
+langchain-core
+langchain-ollama

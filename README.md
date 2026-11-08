@@ -1,40 +1,54 @@
-# DAX40 Neo4j knowledge graph
+# DAX40 Knowledge Graph
 
-This is a lossless Neo4j-ready graph derived from `dax40_news_sentiment_labeled.csv` and adapted from the local Graph-Vector project's Neo4j 5.12 configuration.
+A Neo4j graph of 42,000+ DAX40 news headlines that uses local AI models (Ollama) to find
+topics, connections and the probable reasons behind sentiment shocks. Nothing is hand-labelled:
+topics, thresholds and relationships all come from the dataset.
 
-## Graph model
+## How it works
 
-`(Dataset)-[:CONTAINS]->(NewsItem)-[:ABOUT]->(Company)`
+1. `ingestion.py` validates the CSV and loads the base graph.
+2. `enrich.py` embeds every headline with `nomic-embed-text`, then
+   - clusters the embeddings into topics (the number of topics is chosen automatically, and `llama3.2` names them)
+   - links similar headlines and related companies using data-driven thresholds
+   - flags shocks: company-months whose sentiment is a statistical outlier
+3. `catalyst.py` explains a shock. It collects the company's news and its related companies' news,
+   scores each story, and asks `deepseek-r1` for the likely drivers and what similar past events led to.
+   `catalyst.py train` replays history in time order to learn which topics matter for each company.
+4. `insights.py` mines the graph for trends and leading indicators and has a model write the findings.
+5. `app.py` answers questions, and the AI writes every Cypher query. Lookups ("top 5 companies...") use one
+   query. "Why" questions use `investigate` mode: the model plans several queries and adds similar headlines
+   from the vector index as evidence. Each query is checked against the live schema, and invalid, failing or
+   empty queries go back to the model for repair.
 
-Each `NewsItem` also has one `HAS_SENTIMENT`, one `HAS_HORIZON`, and one `PUBLISHED_IN` relationship. The complete headline, timestamp, impact score, confidence, rationale, and original CSV row number remain properties of the news node.
+## Setup
 
-## Load into Neo4j
+    pip install -r requirements.txt
+    ollama pull nomic-embed-text
+    ollama pull llama3.2
+    ollama pull deepseek-r1:8b
+    ollama pull qwen2.5:3b
 
-1. Start Docker Desktop.
-2. In PowerShell, run `./load.ps1` from this directory.
-3. Open <http://localhost:7474> and sign in with `neo4j` / `12345678`.
+Neo4j 5.11 or newer is needed for the vector index. Set the connection first:
 
-The loader is idempotent: constraints plus `MERGE` prevent duplicate graph elements if it is run again.
+    set NEO4J_PASSWORD=your-password
 
-## Explore
+## Run
 
-```cypher
-MATCH (c:Company)<-[:ABOUT]-(n:NewsItem)-[:HAS_SENTIMENT]->(s:Sentiment)
-RETURN c, n, s LIMIT 100;
-```
+    python ingestion.py --replace
+    python enrich.py                      # embeds 42k headlines, resumes if interrupted
+    python catalyst.py train
+    python catalyst.py shocks --ticker siemens
+    python catalyst.py explain siemens 2020-03
+    python insights.py
+    python app.py "Which topics dominate negative news at Siemens?"
 
-```cypher
-MATCH (n:NewsItem)-[:ABOUT]->(c:Company)
-RETURN c.name, count(*) AS stories, round(avg(n.impact_score), 3) AS mean_impact
-ORDER BY stories DESC;
-```
+Models can be changed with the environment variables `EMBED_MODEL`, `FAST_MODEL`, `DEEP_MODEL` and
+`CYPHER_MODEL`. Small models write unreliable Cypher, so a larger one for `CYPHER_MODEL` helps.
 
-```cypher
-MATCH (n:NewsItem)-[:ABOUT]->(c:Company), (n)-[:HAS_SENTIMENT]->(s:Sentiment)
-WHERE n.news_date >= datetime('2025-01-01T00:00:00Z')
-RETURN c.name, s.name, count(*) AS stories
-ORDER BY stories DESC LIMIT 25;
-```
+Headlines are lowercased before embedding because this Ollama build maps capitalised words to unknown
+tokens, which made different Title Case headlines of equal length produce identical vectors.
 
-The generated CSV files use Neo4j bulk-import-style typed headers and can also be reused with `neo4j-admin database import` if desired. `analysis.json` contains the independently computed validation totals.
+## Notes
 
+Explanations are statistical attribution from news timing, not proof of cause. Shocks are measured
+on dataset sentiment because the dataset has no prices.
