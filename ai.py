@@ -1,5 +1,3 @@
-"""Shared helpers: Ollama models, embeddings and the Neo4j connection."""
-
 import json
 import os
 import re
