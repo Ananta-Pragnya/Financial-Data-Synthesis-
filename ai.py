@@ -26,12 +26,7 @@ def neo4j_driver():
 
 
 def embed(texts, kind="search_document"):
-    """Turn texts into unit-length vectors so a dot product equals cosine similarity.
-
-    nomic-embed-text expects a task prefix: search_document for stored text, search_query for questions.
-    Text is lowercased because this Ollama build turns every capitalised word into an unknown token,
-    which made different Title Case headlines of the same length embed to the identical vector.
-    """
+    
     prefixed = [f"{kind}: {text.lower()}" for text in texts]
     vectors = np.array(ollama.embed(model=EMBED_MODEL, input=prefixed).embeddings, dtype="float32")
     return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
